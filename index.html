@@ -189,7 +189,7 @@ function gPanel(data){
   }
   
   var tBadge=(mQ||sQ)?'<span class="sub-badge">✦ 更新</span>':'';
-  return'<div class="rp"><details><summary><div class="rp-h"><div class="rp-hl"><div class="dot dg"></div><span class="rp-ttl">个人面板</span></div><span class="rp-arr">▾</span></div></summary><div class="rp-bd"><div class="pf-layout"><div class="pf-img" onclick="document.getElementById(\''+id+'\').click()"><img id="'+id+'-i" src="" style="display:none"><div id="'+id+'-p" class="pf-ph"><span class="pf-pht">点击<br>导入立绘</span></div></div><input type="file" accept="image/*" style="display:none" id="'+id+'" data-av="__USER__"><div class="equip-zone">'+equipH+'</div></div><div class="attr-rk">[ '+esc(rank)+' ] '+esc(title)+'</div>'+(comment?'<div class="attr-cm">'+esc(comment)+'</div>':'')+'<div class="attr-grid">'+attrH+'</div><div class="sub-rp"><details><summary><div class="sub-h"><span>系统任务</span>'+tBadge+'<span class="sub-arr">▾</span></div></summary><div class="sub-bd">'+(mQ||sQ?makeTask(mQ,'主线')+makeTask(sQ,'支线'):'<div style="font-size:.7em;color:var(--td);text-align:center;padding:8px">暂无任务</div>')+'</div></details></div></div></details></div>';
+  return'<div class="rp"><details><summary><div class="rp-h"><div class="rp-hl"><div class="dot dg"></div><span class="rp-ttl">个人面板</span></div><span class="rp-arr">▾</span></div></summary><div class="rp-bd"><div class="pf-layout"><div class="pf-img" onclick="document.getElementById(\''+id+'\').click()"><img id="'+id+'-i" src="" style="display:none"><div id="'+id+'-p" class="pf-ph"><span class="pf-pht">点击<br>导入立绘</span></div></div><input type="file" accept="image/*" style="display:none" id="'+id+'" data-av="__USER__"><div class="equip-zone">'+equipH+'</div></div><div class="attr-rk">[ '+esc(rank)+' ] '+esc(title)+'</div>'+(comment?'<div class="attr-cm">'+esc(comment)+'</div>':'')+'<div class="attr-grid">'+attrH+'</div><div class="sub-rp"><details><summary><div class="sub-h"><span>系统任务</span>'+tBadge+'<span class="sub-arr">▾</span></div></summary><div class="sub-bd">'+(mQ||sQ?makeTask(mQ,'主线')+makeTask(sQ,'支线'):'<div style="font-size:.78em;color:var(--td);text-align:center;padding:8px">暂无任务</div>')+'</div></details></div></div></details></div>';
 }
 
 function gChars(items){
@@ -212,8 +212,8 @@ function gMsgs(items,nsfw){
 
 function gLive(bar,tip,viewers,off){
   var h='<div class="rp"><details><summary><div class="rp-h"><div class="rp-hl"><div style="display:flex;align-items:center;gap:6px">';
-  if(off)h+='<div class="dot dw"></div><span style="font-size:.58em;color:var(--td);letter-spacing:2px">直播已关闭</span>';
-  else h+='<div class="ldot"></div><span style="font-size:.58em;color:rgba(192,80,80,.82);letter-spacing:2px">直播中</span>';
+  if(off)h+='<div class="dot dw"></div><span style="font-size:.78em;color:var(--td);letter-spacing:2px">直播已关闭</span>';
+  else h+='<div class="ldot"></div><span style="font-size:.78em;color:rgba(192,80,80,.82);letter-spacing:2px">直播中</span>';
   h+='</div></div><div class="rp-hr">'+(off?'':'<span class="lpop">'+viewers+'</span>')+'<span class="rp-arr">▾</span></div></div></summary><div class="rp-bd">';
   if(off)h+='<div class="live-off">直播间当前未开启</div>';
   else{
@@ -267,7 +267,7 @@ function gForum(data){
 
 function render(){
   var bs=parse();
-  if(!bs.length){R.innerHTML='<div style="text-align:center;padding:40px;color:var(--td);font-size:.8em">等待数据接入...</div>';return}
+  if(!bs.length){R.innerHTML='<div style="text-align:center;padding:40px;color:var(--td);font-size:.85em">等待数据接入...</div>';return}
   var time;try{time=doTime(bs)}catch(x){time={e:'?',m:'?',h:'??:??'}}
   var loc='',bag=[],choices=[],chars=[],msgs=[],nsfw='',panel='';
   var lB=[],lT='',lV='0',lOff=false;
@@ -286,7 +286,7 @@ function render(){
     else if(b.t==='弹窗'){var fi=b.d.indexOf('|');html+=fi<0?gTK('万能',b.d):gTK(b.d.slice(0,fi),b.d.slice(fi+1))}
     else if(b.t==='选项'){var sp=b.d.split('|');choices.push({tag:sp[0]||'',desc:sp[1]||''})}
     else if(b.t==='面板')panel=b.d;
-    else if(b.t==='角色'){var sp=b.d.split('|');chars.push({name:sp[0]||'',state:sp[1]||'',desc:sp[2]||'',thought:sp[3]||''})}
+    else if(b.t==='角色'){var sp=b.d.split('|');chars.push({name:sp[0]||'',state:sp[1]||'',thought:sp[2]||''})}
     else if(b.t==='消息'){if(b.d.indexOf('NSFW')===0)nsfw=b.d.replace(/^NSFW[\|~]/,'');else msgs.push(b.d)}
     else if(b.t==='直播'){
       if(b.d==='关')lOff=true;
