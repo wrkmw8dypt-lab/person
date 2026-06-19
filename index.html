@@ -196,7 +196,7 @@ function gChars(items){
   var h='<div class="rp"><details><summary><div class="rp-h"><div class="rp-hl"><div class="dot dr"></div><span class="rp-ttl">附近角色</span></div><span class="rp-arr">▾</span></div></summary><div class="rp-bd" style="padding-top:6px">';
   for(var i=0;i<items.length;i++){
     var c=items[i];
-    h+='<div class="cc">'+avHTML(c.name,'cav')+'<div class="ci"><div class="cnr"><span class="cn">'+esc(c.name)+'</span><span class="cs">'+esc(c.state)+'</span></div><div class="cl">'+esc(c.desc)+'</div><div class="co">'+esc(c.thought)+'</div></div></div>';
+    h+='<div class="cc">'+avHTML(c.name,'cav')+'<div class="ci"><div class="cnr"><span class="cn">'+esc(c.name)+'</span><span class="cs">'+esc(c.state)+'</span></div><div class="co">'+esc(c.thought)+'</div></div></div>';
   }
   return h+'</div></details></div>';
 }
