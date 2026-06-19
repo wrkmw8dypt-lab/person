@@ -18,9 +18,14 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function prose(t){return'<p>'+t.replace(/「([^」]+)」/g,'<span class="say">"$1"</span>').replace(/\n/g,'</p><p>')+'</p>'}
 
 function parse(){
-  var r='';
-  try{r=decodeURIComponent(location.hash.slice(1))}catch(x){r=location.hash.slice(1)}
+  var r=location.hash.slice(1);
   if(!r)return[];
+  r=r.replace(/%(?![0-9a-fA-F]{2})/g,'%25');
+  try{r=decodeURIComponent(r)}catch(x){
+    r=r.replace(/%[0-9a-fA-F]{2}/g,function(m){
+      try{return decodeURIComponent(m)}catch(e){return m;}
+    });
+  }
   return r.split('§').filter(function(b){return b.trim()}).map(function(b){
     var i=b.indexOf('=');
     return i<0?{t:b.trim(),d:''}:{t:b.slice(0,i).trim(),d:b.slice(i+1).trim()};
