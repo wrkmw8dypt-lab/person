@@ -15,16 +15,24 @@
 var LS=localStorage,R=document.getElementById('R'),T=document.getElementById('T'),_id=0;
 function uid(){return'u'+(++_id)}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-function prose(t){return'<p>'+t.replace(/「([^」]+)」/g,'<span class="say">"$1"</span>').replace(/\n/g,'</p><p>')+'</p>'}
+
+function prose(t){
+  var ps=String(t||'').split('|');
+  var h='';
+  for(var i=0;i<ps.length;i++){
+    var s=ps[i].trim();
+    if(!s)continue;
+    h+='<p>'+s.replace(/「([^」]+)」/g,'<span class="say">"$1"</span>')+'</p>';
+  }
+  return h;
+}
 
 function parse(){
   var r=location.hash.slice(1);
   if(!r)return[];
   r=r.replace(/%(?![0-9a-fA-F]{2})/g,'%25');
   try{r=decodeURIComponent(r)}catch(x){
-    r=r.replace(/%[0-9a-fA-F]{2}/g,function(m){
-      try{return decodeURIComponent(m)}catch(e){return m;}
-    });
+    r=r.replace(/%[0-9a-fA-F]{2}/g,function(m){try{return decodeURIComponent(m)}catch(e){return m}});
   }
   return r.split('§').filter(function(b){return b.trim()}).map(function(b){
     var i=b.indexOf('=');
@@ -34,16 +42,16 @@ function parse(){
 
 function doTime(bs){
   var td=null;
-  try{td=JSON.parse(LS.getItem('wt')||'null')}catch(x){td=null}
+  try{td=JSON.parse(LS.getItem('wt')||'null')}catch(x){}
   for(var i=0;i<bs.length;i++){
     var b=bs[i];
     if(b.t==='时间覆盖'){
       var p=b.d.split('|');
-      td={e:p[0]||'',m:p[1]||'',h:p[2]||'00:00'};
+      td={e:p[0]||(td?td.e:'--'),m:p[1]||(td?td.m:'--'),h:p[2]||(td?td.h:'--:--')};
     }
-    if(b.t==='时间流逝'&&td){
-      var n=parseInt(b.d)||0,hm=td.h.split(':'),hh=+hm[0],mm=+hm[1];
-      mm+=n;while(mm>=60){mm-=60;hh++;}while(hh>=24)hh-=24;
+    if(b.t==='时间流逝'&&td&&td.h&&td.h.indexOf(':')>0){
+      var n=parseInt(b.d)||0,hm=td.h.split(':'),hh=+hm[0]||0,mm=+hm[1]||0;
+      mm+=n;while(mm>=60){mm-=60;hh++}while(hh>=24)hh-=24;
       td.h=('0'+hh).slice(-2)+':'+('0'+mm).slice(-2);
     }
   }
@@ -61,11 +69,17 @@ function avBind(el,tx,inp,nm){
       var img=new Image();
       img.onload=function(){
         var c=document.createElement('canvas'),w=img.width,h=img.height;
-        if(w>150){h*=150/w;w=150;}if(h>200){w*=200/h;h=200;}
-        c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
-        var d=c.toDataURL('image/jpeg',0.7);
+        var maxW=400,maxH=520;
+        if(w>maxW){h*=maxW/w;w=maxW}
+        if(h>maxH){w*=maxH/h;h=maxH}
+        c.width=w;c.height=h;
+        var ctx=c.getContext('2d');
+        ctx.imageSmoothingEnabled=true;
+        ctx.imageSmoothingQuality='high';
+        ctx.drawImage(img,0,0,w,h);
+        var d=c.toDataURL('image/jpeg',0.88);
         try{LS.setItem('wa_'+nm,d)}catch(e){}
-        if(el){el.src=d;el.style.display='block';}if(tx)tx.style.display='none';
+        if(el){el.src=d;el.style.display='block'}if(tx)tx.style.display='none';
       };
       img.src=ev.target.result;
     };
@@ -73,12 +87,8 @@ function avBind(el,tx,inp,nm){
   };
 }
 
-function cp(t){
-  try{navigator.clipboard.writeText(t)}
-  catch(x){var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');document.body.removeChild(a);}
-}
-
-function toast(m){T.textContent=m;T.classList.add('show');clearTimeout(T._t);T._t=setTimeout(function(){T.classList.remove('show')},2000);}
+function cp(t){try{navigator.clipboard.writeText(t)}catch(x){var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');document.body.removeChild(a)}}
+function toast(m){T.textContent=m;T.classList.add('show');clearTimeout(T._t);T._t=setTimeout(function(){T.classList.remove('show')},2000)}
 
 function avHTML(nm,cls){
   var id=uid();
@@ -87,22 +97,36 @@ function avHTML(nm,cls){
 
 function gSB(t,loc){
   var l=String(loc||'').split('|');
-  return'<div class="sb5"><div class="sb5-t">'+t.h+'</div><div class="sb5-sep"></div><div class="sb5-right"><div class="sb5-row"><span class="sb5-era">'+esc(t.e)+'</span><span class="sb5-date">'+esc(t.m)+'</span></div><div class="sb5-row"><span class="sb5-loc">'+esc(l[0]||'')+'</span>'+(l[1]?'<span class="sb5-dot">·</span><span class="sb5-wx">'+esc(l[1])+'</span>':'')+'</div></div></div>';
+  return'<div class="sb5"><div class="sb5-t">'+esc(t.h)+'</div><div class="sb5-sep"></div><div class="sb5-right"><div class="sb5-row"><span class="sb5-era">'+esc(t.e)+'</span><span class="sb5-date">'+esc(t.m)+'</span></div><div class="sb5-row"><span class="sb5-loc">'+esc(l[0]||'')+'</span>'+(l[1]?'<span class="sb5-dot">·</span><span class="sb5-wx">'+esc(l[1])+'</span>':'')+'</div></div></div>';
 }
 
 function gTK(sub,data){
   var p=String(data||'').split('|');
-  function makeHd(title,color,eng){
-    var chars=title.split('');
-    var ttl='';
-    for(var i=0;i<chars.length;i++)ttl+='<span class="tc">'+chars[i]+'</span>';
-    return'<div class="tkt '+color+'"><div class="tkt-bar"></div><div class="tkt-hd"><div class="tkt-ttl">'+ttl+'</div><div class="tkt-sub">'+eng+'</div></div>';
+  function hd(title,color,eng){
+    var t='';for(var i=0;i<title.length;i++)t+='<span class="tc">'+title.charAt(i)+'</span>';
+    return'<div class="tkt '+color+'"><div class="tkt-bar"></div><div class="tkt-hd"><div class="tkt-ttl">'+t+'</div><div class="tkt-sub">'+eng+'</div></div>';
   }
   if(sub==='系统通知'){
-    return makeHd('系统通知','red','SYSTEM · NOTIFICATION')+'<div class="tkt-bd"><div class="tkt-kv"><span class="tkt-k">任务</span><span class="tkt-v">'+esc(p[0]||'')+'</span></div><div class="tkt-kv"><span class="tkt-k">进度</span><span class="tkt-v">'+esc(p[1]||'')+'</span></div><div class="tkt-kv"><span class="tkt-k">奖励</span><span class="tkt-v">'+esc(p[2]||'')+'</span></div>'+(p[3]?'<div class="tkt-note">'+esc(p[3])+'</div>':'')+'</div><div class="tkt-tear"></div></div>';
+    return hd('系统通知','red','SYSTEM · NOTIFICATION')+'<div class="tkt-bd"><div class="tkt-kv"><span class="tkt-k">任务</span><span class="tkt-v">'+esc(p[0]||'')+'</span></div><div class="tkt-kv"><span class="tkt-k">进度</span><span class="tkt-v">'+esc(p[1]||'')+'</span></div><div class="tkt-kv"><span class="tkt-k">奖励</span><span class="tkt-v">'+esc(p[2]||'')+'</span></div>'+(p[3]?'<div class="tkt-note">'+esc(p[3])+'</div>':'')+'</div><div class="tkt-tear"></div></div>';
   }
   if(sub==='世界档案'){
-    return makeHd('世界档案','blue','WORLD · ARCHIVE')+'<div class="tkt-bd"><div class="tkt-kv"><span class="tkt-k">小说</span><span class="tkt-v">'+esc(p[0]||'')+'</span></div><div class="tkt-kv"><span class="tkt-k">节点</span><span class="tkt-v">'+esc(p[1]||'')+'</span></div><div class="tkt-kv"><span class="tkt-k">身份</span><span class="tkt-v">'+esc(p[2]||'')+'</span></div><div class="tkt-kv"><span class="tkt-k">目标</span><span class="tkt-v">'+esc(p[3]||'')+'</span></div></div><div class="tkt-tear"></div></div>';
+    var nv=p[0]||'',pl=p[1]||'',ct=p[2]||'',tk=p[3]||'',id=p[4]||'',st=p[5]||'';
+    var castH='';
+    if(ct){
+      var cl=ct.split(',');
+      for(var i=0;i<cl.length;i++){
+        var c=cl[i].split('~');
+        if(c[0])castH+='<div class="cast-i"><span class="cast-n">'+esc(c[0])+'</span><span class="cast-d">'+esc(c[1]||'')+'</span></div>';
+      }
+    }
+    return hd('世界档案','blue','WORLD · ARCHIVE')+'<div class="tkt-bd">'+
+      (nv?'<div class="tkt-kv"><span class="tkt-k">小说</span><span class="tkt-v">'+esc(nv)+'</span></div>':'')+
+      (pl?'<div class="tkt-kv tkt-kv-b"><span class="tkt-k">情节</span><span class="tkt-v">'+esc(pl)+'</span></div>':'')+
+      (castH?'<div class="tkt-kv tkt-kv-b"><span class="tkt-k">主角</span><div class="cast-list">'+castH+'</div></div>':'')+
+      (tk?'<div class="tkt-kv"><span class="tkt-k">任务</span><span class="tkt-v">'+esc(tk)+'</span></div>':'')+
+      (id?'<div class="tkt-kv"><span class="tkt-k">身份</span><span class="tkt-v">'+esc(id)+'</span></div>':'')+
+      (st?'<div class="tkt-kv tkt-kv-b"><span class="tkt-k">处境</span><span class="tkt-v">'+esc(st)+'</span></div>':'')+
+      '</div><div class="tkt-tear"></div></div>';
   }
   return'<div class="gen-popup"><div class="gen-popup-hd"><div class="gen-popup-dot"></div><div class="gen-popup-title">'+esc(p[0]||'系统')+'</div></div><div class="gen-popup-bd">'+esc(p.slice(1).join(' '))+'</div></div>';
 }
@@ -117,44 +141,55 @@ function gChoices(items){
 
 function makeTask(raw,type){
   if(!raw)return'';
-  var q=String(raw).split('~');
-  var cls=type==='支线'?'s':'';
-  return'<div class="ti '+cls+'"><div class="tr1"><span class="ttag">'+type+'</span><span class="tnm">'+esc(q[0]||'')+'</span></div><div class="tr2"><div class="tpt"><div class="tpf" style="width:'+(parseInt(q[1])||0)+'%"></div></div><span class="tnum">'+esc(q[1]||'')+'</span></div><div class="trw">▸ '+esc(q[2]||'')+'</div>'+(q[3]?'<div class="tev">'+esc(q[3])+'</div>':'')+'</div>';
+  var q=String(raw).split('~'),cls=type==='支线'?'s':'',pg=q[1]||'',pct=0;
+  if(pg.indexOf('/')>0){var pp=pg.split('/');pct=Math.min(100,(parseInt(pp[0])||0)/(parseInt(pp[1])||1)*100)}
+  else pct=parseInt(pg)||0;
+  return'<div class="ti '+cls+'"><div class="tr1"><span class="ttag">'+type+'</span><span class="tnm">'+esc(q[0]||'')+'</span></div><div class="tr2"><div class="tpt"><div class="tpf" style="width:'+pct+'%"></div></div><span class="tnum">'+esc(pg)+'</span></div><div class="trw">▸ '+esc(q[2]||'')+'</div>'+(q[3]?'<div class="tev">'+esc(q[3])+'</div>':'')+'</div>';
 }
 
 function gPanel(data){
   var p=String(data||'').split('|');
-  var rank=p[0]||'',title=p[1]||'',comment=p[2]||'';
+  var rank=p[0]||'未知',title=p[1]||'',comment=p[2]||'';
   var equipsRaw=p[3]||'',attrsRaw=p[4]||'',mQ=p[5]||'',sQ=p[6]||'';
-  var equips=[],attrs=[];
-  var eList=equipsRaw.split(',');
-  for(var i=0;i<eList.length;i++){
-    if(!eList[i])continue;
-    var s=eList[i].split('~');
-    equips.push({l:s[0]||'',v:s[1]||''});
-  }
-  var aList=attrsRaw.split(',');
-  for(var i=0;i<aList.length;i++){
-    if(!aList[i])continue;
-    var s=aList[i].split('~');
-    attrs.push({n:s[0]||'',v:parseInt(s[1])||0,d:s[2]||'0'});
-  }
-  var id=uid();
-  var equipHTML='';
-  for(var i=0;i<equips.length;i++){
-    equipHTML+='<div class="eq-slot"><span class="eq-label">'+esc(equips[i].l)+'</span><span class="eq-val">'+esc(equips[i].v)+'</span></div>';
-  }
-  var attrHTML='';
-  for(var i=0;i<attrs.length;i++){
-    var a=attrs[i],dH='';
-    if(a.d&&a.d!=='0'){
-      var cls=a.d.charAt(0)==='+'?'plus':'minus';
-      dH='<span class="av-delta '+cls+'">'+esc(a.d)+'</span>';
+  var allSlots=['发型','饰品','妆容','上衣','下装','连衣裙','袜类','鞋子','特殊'];
+  var allAttrs=['智力','魅力','体质','力量','敏捷','意志','幸运'];
+  var equipMap={},attrMap={},savedAttrs={};
+  try{savedAttrs=JSON.parse(LS.getItem('wattr')||'{}')}catch(x){}
+  
+  var eL=equipsRaw.split(',');
+  for(var i=0;i<eL.length;i++){if(!eL[i])continue;var s=eL[i].split('~');if(s[0])equipMap[s[0]]=s[1]||'无';}
+  
+  var aL=attrsRaw.split(',');
+  for(var i=0;i<aL.length;i++){
+    if(!aL[i])continue;var s=aL[i].split('~');
+    if(s[0]){
+      var v=s[1]==='???'?'???':(parseInt(s[1])||0);
+      attrMap[s[0]]={v:v,d:s[2]||'0'};
+      if(v!=='???')savedAttrs[s[0]]=v;
     }
-    attrHTML+='<div class="ai"><span class="al">'+esc(a.n)+'</span><div class="ab"><div class="af" style="width:'+Math.min(a.v,100)+'%"></div></div><span class="av">'+a.v+'</span>'+dH+'</div>';
   }
-  var taskBadge=(mQ||sQ)?'<span class="sub-badge">✦ 更新</span>':'';
-  return'<div class="rp"><details><summary><div class="rp-h"><div class="rp-hl"><div class="dot dg"></div><span class="rp-ttl">个人面板</span></div><span class="rp-arr">▾</span></div></summary><div class="rp-bd"><div class="pf-layout"><div class="pf-img" onclick="document.getElementById(\''+id+'\').click()"><img id="'+id+'-i" src="" style="display:none"><div id="'+id+'-p" class="pf-ph"><span class="pf-pht">点击<br>导入立绘</span></div></div><input type="file" accept="image/*" style="display:none" id="'+id+'" data-av="__USER__"><div class="equip-zone">'+equipHTML+'</div></div><div class="attr-rk">[ '+esc(rank)+' ] '+esc(title)+'</div>'+(comment?'<div class="attr-cm">'+esc(comment)+'</div>':'')+'<div class="attr-grid">'+attrHTML+'</div><div class="sub-rp"><details><summary><div class="sub-h"><span>系统任务</span>'+taskBadge+'<span class="sub-arr">▾</span></div></summary><div class="sub-bd">'+makeTask(mQ,'主线')+makeTask(sQ,'支线')+'</div></details></div></div></details></div>';
+  try{LS.setItem('wattr',JSON.stringify(savedAttrs))}catch(x){}
+  
+  var id=uid();
+  var equipH='';
+  for(var i=0;i<allSlots.length;i++){
+    var sl=allSlots[i],vl=equipMap[sl]||'无';
+    equipH+='<div class="eq-slot"><span class="eq-label">'+esc(sl)+'</span><span class="eq-val">'+esc(vl)+'</span></div>';
+  }
+  
+  var attrH='';
+  for(var i=0;i<allAttrs.length;i++){
+    var nm=allAttrs[i],ad=attrMap[nm],v,dH='';
+    if(ad){
+      v=ad.v;
+      if(ad.d&&ad.d!=='0'){var cl=ad.d.charAt(0)==='+'?'plus':'minus';dH='<span class="av-delta '+cl+'">'+esc(ad.d)+'</span>'}
+    } else v=savedAttrs[nm]!==undefined?savedAttrs[nm]:'-';
+    var bw=(typeof v==='number')?Math.min(v,100):0;
+    attrH+='<div class="ai"><span class="al">'+esc(nm)+'</span><div class="ab"><div class="af" style="width:'+bw+'%"></div></div><span class="av">'+esc(String(v))+'</span>'+dH+'</div>';
+  }
+  
+  var tBadge=(mQ||sQ)?'<span class="sub-badge">✦ 更新</span>':'';
+  return'<div class="rp"><details><summary><div class="rp-h"><div class="rp-hl"><div class="dot dg"></div><span class="rp-ttl">个人面板</span></div><span class="rp-arr">▾</span></div></summary><div class="rp-bd"><div class="pf-layout"><div class="pf-img" onclick="document.getElementById(\''+id+'\').click()"><img id="'+id+'-i" src="" style="display:none"><div id="'+id+'-p" class="pf-ph"><span class="pf-pht">点击<br>导入立绘</span></div></div><input type="file" accept="image/*" style="display:none" id="'+id+'" data-av="__USER__"><div class="equip-zone">'+equipH+'</div></div><div class="attr-rk">[ '+esc(rank)+' ] '+esc(title)+'</div>'+(comment?'<div class="attr-cm">'+esc(comment)+'</div>':'')+'<div class="attr-grid">'+attrH+'</div><div class="sub-rp"><details><summary><div class="sub-h"><span>系统任务</span>'+tBadge+'<span class="sub-arr">▾</span></div></summary><div class="sub-bd">'+(mQ||sQ?makeTask(mQ,'主线')+makeTask(sQ,'支线'):'<div style="font-size:.7em;color:var(--td);text-align:center;padding:8px">暂无任务</div>')+'</div></details></div></div></details></div>';
 }
 
 function gChars(items){
@@ -171,12 +206,7 @@ function gMsgs(items,nsfw){
   var h='<div class="rp"><details><summary><div class="rp-h"><div class="rp-hl"><div class="dot dw"></div><span class="rp-ttl">消息通知</span></div><div class="rp-hr"><span class="mbdg">'+n+'</span><span class="rp-arr">▾</span></div></div></summary><div class="rp-bd">';
   if(nsfw)h+='<div class="msg-nsfw">'+esc(nsfw)+'</div>';
   else if(!n)h+='<div class="msg-nsfw">暂无新消息</div>';
-  else{
-    for(var i=0;i<items.length;i++){
-      var p=items[i].split('~');
-      h+='<div class="mi"><div class="mh"><span class="ms">'+esc(p[0]||'')+'</span><span class="mt">'+esc(p[1]||'')+'</span></div><div class="mc">'+esc(p[2]||'')+'</div></div>';
-    }
-  }
+  else for(var i=0;i<items.length;i++){var p=items[i].split('~');h+='<div class="mi"><div class="mh"><span class="ms">'+esc(p[0]||'')+'</span><span class="mt">'+esc(p[1]||'')+'</span></div><div class="mc">'+esc(p[2]||'')+'</div></div>';}
   return h+'</div></details></div>';
 }
 
@@ -187,52 +217,30 @@ function gLive(bar,tip,viewers,off){
   h+='</div></div><div class="rp-hr">'+(off?'':'<span class="lpop">'+viewers+'</span>')+'<span class="rp-arr">▾</span></div></div></summary><div class="rp-bd">';
   if(off)h+='<div class="live-off">直播间当前未开启</div>';
   else{
-    for(var i=0;i<bar.length;i++){
-      var p=bar[i].split('~');
-      h+='<div class="dm"><span class="dmu">@'+esc(p[0]||'')+'</span><span class="dmt">'+esc(p[1]||'')+'</span></div>';
-    }
-    if(tip){
-      var tp=tip.split('~');
-      h+='<div class="don"><div class="dont">· 打赏 ·</div><div class="donc">【'+esc(tp[0]||'')+'】打赏了 <span style="color:var(--go)">'+esc(tp[1]||'')+'</span>'+(tp[2]?'<br>留言："'+esc(tp[2])+'"':'')+'</div></div>';
-    }
+    for(var i=0;i<bar.length;i++){var p=bar[i].split('~');h+='<div class="dm"><span class="dmu">@'+esc(p[0]||'')+'</span><span class="dmt">'+esc(p[1]||'')+'</span></div>';}
+    if(tip){var tp=tip.split('~');h+='<div class="don"><div class="dont">· 打赏 ·</div><div class="donc">【'+esc(tp[0]||'')+'】打赏了 <span style="color:var(--go)">'+esc(tp[1]||'')+'</span>'+(tp[2]?'<br>留言："'+esc(tp[2])+'"':'')+'</div></div>';}
   }
   return h+'</div></details></div>';
 }
 
 function gBag(items){
   var h='<div class="rp"><details><summary><div class="rp-h"><div class="rp-hl"><div class="dot dj"></div><span class="rp-ttl">背包与指令</span></div><span class="rp-arr">▾</span></div></summary><div class="rp-bd"><div class="ilbl" style="margin-top:0">背包</div><div class="bag-r">';
-  if(items.length){
-    for(var i=0;i<items.length;i++)h+='<div class="bag-c">'+esc(items[i])+'</div>';
-  }else h+='<div class="bag-c">暂无物品</div>';
+  if(items.length)for(var i=0;i<items.length;i++)h+='<div class="bag-c">'+esc(items[i])+'</div>';
+  else h+='<div class="bag-c">暂无物品</div>';
   h+='</div><div class="ilbl">指令</div><div class="cmd-gs">';
-  var cmds=[
-    ['查询','NPC信息','地图','实力榜','颜值榜'],
-    ['社交','私聊','群聊','组队','论坛','招募同伴'],
-    ['系统','商城','背包回收','跳过时间','退出世界'],
-    ['直播','开启直播','关闭直播','开启打赏','关闭打赏']
-  ];
-  for(var g=0;g<cmds.length;g++){
-    h+='<div><div class="cmd-gl">'+cmds[g][0]+'</div><div class="cmd-w">';
-    for(var j=1;j<cmds[g].length;j++)h+='<span class="cmd-b">'+cmds[g][j]+'</span>';
-    h+='</div></div>';
-  }
+  var cmds=[['查询','NPC信息','地图','实力榜','颜值榜'],['社交','私聊','群聊','组队','论坛','招募同伴'],['系统','商城','背包回收','跳过时间','退出世界'],['直播','开启直播','关闭直播','开启打赏','关闭打赏']];
+  for(var g=0;g<cmds.length;g++){h+='<div><div class="cmd-gl">'+cmds[g][0]+'</div><div class="cmd-w">';for(var j=1;j<cmds[g].length;j++)h+='<span class="cmd-b">'+cmds[g][j]+'</span>';h+='</div></div>';}
   return h+'</div></div></details></div>';
 }
 
 function gChat(name,count,msgs){
-  var t={};
-  try{t=JSON.parse(LS.getItem('wt')||'{}')}catch(x){}
+  var t={};try{t=JSON.parse(LS.getItem('wt')||'{}')}catch(x){}
   var ct=t.h||'--:--';
   var h='<div class="chat-win"><div class="chat-header"><div class="chat-title-row"><div class="chat-live-dot"></div><div class="chat-title">'+esc(name)+'</div></div><div class="chat-sub">'+count+'人在线</div></div><div class="chat-body">';
   for(var i=0;i<msgs.length;i++){
     var m=msgs[i];
-    if(m.indexOf('---')===0){
-      h+='<div class="cdiv"><div class="cdiv-l"></div><div class="cdiv-t">'+esc(m.slice(3).trim())+'</div><div class="cdiv-l"></div></div>';
-      continue;
-    }
-    var ci=m.indexOf(':');
-    if(ci<0){ci=m.indexOf(':');}
-    if(ci<0)continue;
+    if(m.indexOf('---')===0){h+='<div class="cdiv"><div class="cdiv-l"></div><div class="cdiv-t">'+esc(m.slice(3).trim())+'</div><div class="cdiv-l"></div></div>';continue}
+    var ci=m.indexOf(':');if(ci<0)ci=m.indexOf(':');if(ci<0)continue;
     var sp=m.slice(0,ci).trim(),tx=m.slice(ci+1).trim();
     var me=sp==='我',dir=me?'r':'l';
     h+='<div class="cmsg '+dir+'">'+avHTML(sp,'cav2')+'<div class="cbw">'+(me?'':'<div class="cname">'+esc(sp)+'</div>')+'<div class="cbubble">'+esc(tx)+'</div><div class="ctm">'+ct+'</div></div></div>';
@@ -241,15 +249,14 @@ function gChat(name,count,msgs){
 }
 
 function gForum(data){
-  var p=String(data||'').split(',');
+  var p=String(data||'').split('|');
   var au=p[0]||'',tag=p[1]||'',title=p[2]||'',body=p[3]||'',stats=p[4]||'0~0~0';
   var cmts=p.slice(5),st=stats.split('~');
   var h='<div class="fp"><div class="fp-head">'+avHTML(au,'fp-av')+'<div class="fp-meta"><div class="fp-author">'+esc(au)+'</div><div class="fp-info-row"><span class="fp-tag">'+esc(tag)+'</span></div></div></div><div class="fp-title">'+esc(title)+'</div><div class="fp-body">'+esc(body)+'</div><div class="fp-footer"><span class="fp-stat">♡ '+esc(st[0]||'0')+'</span><span class="fp-stat">↻ '+esc(st[1]||'0')+'</span><span class="fp-stat">✦ '+esc(st[2]||'0')+'</span></div>';
   if(cmts.length){
     h+='<details class="fp-cmt-details"><summary>展开评论 ▾</summary><div class="fp-cmt-area">';
     for(var i=0;i<cmts.length;i++){
-      var ci=cmts[i].indexOf(':');
-      if(ci<0)continue;
+      var ci=cmts[i].indexOf(':');if(ci<0)ci=cmts[i].indexOf(':');if(ci<0)continue;
       var ca=cmts[i].slice(0,ci).trim(),ct=cmts[i].slice(ci+1).trim();
       h+='<div class="fp-cmt-i">'+avHTML(ca,'fp-cmt-av')+'<div class="fp-cmt-ct"><div class="fp-cmt-hr"><span class="fp-cmt-au">'+esc(ca)+'</span></div><div class="fp-cmt-tx">'+esc(ct)+'</div></div></div>';
     }
@@ -260,92 +267,49 @@ function gForum(data){
 
 function render(){
   var bs=parse();
-  if(!bs.length){R.innerHTML='<div style="text-align:center;padding:40px;color:var(--td);font-size:.8em">等待数据接入...</div>';return;}
-  var time;
-  try{time=doTime(bs)}catch(x){time={e:'?',m:'?',h:'??:??'};}
+  if(!bs.length){R.innerHTML='<div style="text-align:center;padding:40px;color:var(--td);font-size:.8em">等待数据接入...</div>';return}
+  var time;try{time=doTime(bs)}catch(x){time={e:'?',m:'?',h:'??:??'}}
   var loc='',bag=[],choices=[],chars=[],msgs=[],nsfw='',panel='';
   var lB=[],lT='',lV='0',lOff=false;
 
-  for(var i=0;i<bs.length;i++){
-    try{
-      if(bs[i].t==='地点')loc=bs[i].d;
-      if(bs[i].t==='背包')bag=bs[i].d.split(',').filter(function(x){return x});
-    }catch(x){}
-  }
+  for(var i=0;i<bs.length;i++){try{
+    if(bs[i].t==='地点')loc=bs[i].d;
+    if(bs[i].t==='背包')bag=bs[i].d.split(',').filter(function(x){return x});
+  }catch(x){}}
 
   var html='';
-  try{html+=gSB(time,loc)}catch(x){html+='<div class="werr">⚠ 状态栏异常</div>';}
+  try{html+=gSB(time,loc)}catch(x){html+='<div class="werr">⚠ 状态栏异常</div>'}
 
-  for(var i=0;i<bs.length;i++){
-    try{
-      var b=bs[i];
-      if(b.t==='正文')html+='<div class="prose">'+prose(b.d)+'</div>';
-      else if(b.t==='弹窗'){
-        var fi=b.d.indexOf('|');
-        if(fi<0)html+=gTK('万能',b.d);
-        else html+=gTK(b.d.slice(0,fi),b.d.slice(fi+1));
-      }
-      else if(b.t==='选项'){
-        var sp=b.d.split('|');
-        choices.push({tag:sp[0]||'',desc:sp[1]||''});
-      }
-      else if(b.t==='面板')panel=b.d;
-      else if(b.t==='角色'){
-        var sp=b.d.split('|');
-        chars.push({name:sp[0]||'',state:sp[1]||'',desc:sp[2]||'',thought:sp[3]||''});
-      }
-      else if(b.t==='消息'){
-        if(b.d.indexOf('NSFW')===0)nsfw=b.d.replace(/^NSFW[\|~]/,'');
-        else msgs.push(b.d);
-      }
-      else if(b.t==='直播'){
-        if(b.d==='关')lOff=true;
-        else{
-          var parts=b.d.split(',');
-          for(var j=0;j<parts.length;j++){
-            if(parts[j].indexOf('观众~')===0)lV=parts[j].slice(3);
-            else if(parts[j].indexOf('打赏~')===0)lT=parts[j].slice(3);
-            else lB.push(parts[j]);
-          }
-        }
-      }
-      else if(b.t==='群聊'){
-        var sp=b.d.split(',');
-        html+=gChat(sp[0]||'',sp[1]||'0',sp.slice(2));
-      }
-      else if(b.t==='私聊'){
-        var sp=b.d.split(',');
-        html+=gChat(sp[0]||'','2',sp.slice(1));
-      }
-      else if(b.t==='论坛')html+=gForum(b.d);
-    }catch(x){
-      html+='<div class="werr">⚠ '+esc(bs[i].t)+'模块异常</div>';
+  for(var i=0;i<bs.length;i++){try{
+    var b=bs[i];
+    if(b.t==='正文')html+='<div class="prose">'+prose(b.d)+'</div>';
+    else if(b.t==='弹窗'){var fi=b.d.indexOf('|');html+=fi<0?gTK('万能',b.d):gTK(b.d.slice(0,fi),b.d.slice(fi+1))}
+    else if(b.t==='选项'){var sp=b.d.split('|');choices.push({tag:sp[0]||'',desc:sp[1]||''})}
+    else if(b.t==='面板')panel=b.d;
+    else if(b.t==='角色'){var sp=b.d.split('|');chars.push({name:sp[0]||'',state:sp[1]||'',desc:sp[2]||'',thought:sp[3]||''})}
+    else if(b.t==='消息'){if(b.d.indexOf('NSFW')===0)nsfw=b.d.replace(/^NSFW[\|~]/,'');else msgs.push(b.d)}
+    else if(b.t==='直播'){
+      if(b.d==='关')lOff=true;
+      else{var parts=b.d.split('|');for(var j=0;j<parts.length;j++){if(parts[j].indexOf('观众~')===0)lV=parts[j].slice(3);else if(parts[j].indexOf('打赏~')===0)lT=parts[j].slice(3);else lB.push(parts[j])}}
     }
-  }
+    else if(b.t==='群聊'){var sp=b.d.split('|');html+=gChat(sp[0]||'',sp[1]||'0',sp.slice(2))}
+    else if(b.t==='私聊'){var sp=b.d.split('|');html+=gChat(sp[0]||'','2',sp.slice(1))}
+    else if(b.t==='论坛')html+=gForum(b.d);
+  }catch(x){html+='<div class="werr">⚠ '+esc(bs[i].t)+'模块异常</div>'}}
 
-  try{if(choices.length)html+=gChoices(choices)}catch(x){html+='<div class="werr">⚠ 选项异常</div>';}
-  try{if(panel)html+=gPanel(panel)}catch(x){html+='<div class="werr">⚠ 面板异常</div>';}
+  try{if(choices.length)html+=gChoices(choices)}catch(x){}
+  try{html+=gPanel(panel)}catch(x){html+='<div class="werr">⚠ 面板异常</div>'}
   try{html+=gBag(bag)}catch(x){}
-  try{if(chars.length)html+=gChars(chars)}catch(x){html+='<div class="werr">⚠ 角色异常</div>';}
+  try{if(chars.length)html+=gChars(chars)}catch(x){}
   try{html+=gMsgs(msgs,nsfw)}catch(x){}
   try{html+=gLive(lB,lT,lV,lOff)}catch(x){}
 
   R.innerHTML=html;
 
-  var avInputs=document.querySelectorAll('[data-av]');
-  for(var i=0;i<avInputs.length;i++){
-    var inp=avInputs[i],nm=inp.getAttribute('data-av');
-    var img=document.getElementById(inp.id+'-i');
-    var tx=document.getElementById(inp.id+'-t')||document.getElementById(inp.id+'-p');
-    if(img)avBind(img,tx,inp,nm);
-  }
-  var actBtns=document.querySelectorAll('.act-btn');
-  for(var i=0;i<actBtns.length;i++){
-    actBtns[i].onclick=function(){
-      var t=this.getAttribute('data-copy');
-      if(t){cp(t);toast('✓ 已复制，请长按粘贴');}
-    };
-  }
+  var avs=document.querySelectorAll('[data-av]');
+  for(var i=0;i<avs.length;i++){var inp=avs[i],nm=inp.getAttribute('data-av');var img=document.getElementById(inp.id+'-i');var tx=document.getElementById(inp.id+'-t')||document.getElementById(inp.id+'-p');if(img)avBind(img,tx,inp,nm)}
+  var btns=document.querySelectorAll('.act-btn');
+  for(var i=0;i<btns.length;i++){btns[i].onclick=function(){var t=this.getAttribute('data-copy');if(t){cp(t);toast('✓ 已复制，请长按粘贴')}}}
 }
 
 render();
