@@ -130,7 +130,7 @@ function gChars(items){
   var h='<div class="rp"><details><summary><div class="rp-h"><div class="rp-hl"><div class="dot dr"></div><span class="rp-ttl">附近角色</span></div><span class="rp-arr">▾</span></div></summary><div class="rp-bd" style="padding-top:6px">';
   for(var i=0;i<items.length;i++){
     var c=items[i];
-    h+='<div class="cc">'+avHTML(c.name,'cav')+'<div class="ci"><div class="cnr"><span class="cn">'+esc(c.name)+'</span><span class="cs">'+esc(c.state)+'</span></div><div class="co"><span class="co-tag">os</span><span class="co-tx">'+esc(c.thought)+'</span></div></div></div>';
+    h+='<div class="cc">'+avHTML(c.name,'cav')+'<div class="ci"><div class="cnr"><span class="cn">'+esc(c.name)+'</span><span class="cs">'+esc(c.state)+'</span></div><div class="co">'+esc(c.thought)+'</div></div></div>';
   }
   return h+'</div></details></div>';
 }
@@ -185,19 +185,34 @@ function gForum(data){
   var p=String(data||'').split('|');
   var au=p[0]||'',tag=p[1]||'',title=p[2]||'',body=p[3]||'',stats=p[4]||'0~0~0';
   var rawCmts=p.slice(5),st=stats.split('~');
-  
-  // 解析评论：↳开头的归到上一条作为子回复
   var topCmts=[],lastTop=null;
   for(var i=0;i<rawCmts.length;i++){
     var raw=rawCmts[i];
-    if(raw.charAt(0)==='↳'){
-      if(lastTop)lastTop.replies.push(raw.slice(1));
-    } else {
-      var c={raw:raw,replies:[]};
-      topCmts.push(c);
-      lastTop=c;
-    }
+    if(raw.charAt(0)==='\u21B3'){if(lastTop)lastTop.replies.push(raw.slice(1))}
+    else{var c={raw:raw,replies:[]};topCmts.push(c);lastTop=c;}
   }
+  var h='<div class="fp"><div class="fp-head">'+avHTML(au,'fp-av')+'<div class="fp-meta"><div class="fp-author">'+esc(au)+'</div><div class="fp-info-row"><span class="fp-tag">'+esc(tag)+'</span></div></div></div><div class="fp-title">'+esc(title)+'</div><div class="fp-body">'+esc(body)+'</div><div class="fp-footer"><span class="fp-stat">\u2661 '+esc(st[0]||'0')+' \u70B9\u8D5E</span><span class="fp-stat">\u2726 '+esc(st[2]||'0')+' \u6536\u85CF</span><span class="fp-stat">\u21BB '+esc(st[1]||'0')+' \u5206\u4EAB</span><span class="fp-stat">\u270E \u8BC4\u8BBA</span></div>';
+  if(topCmts.length){
+    h+='<details class="fp-cmt-details" open><summary>\u5171 '+topCmts.length+' \u6761\u8BC4\u8BBA \u25BE</summary><div class="fp-cmt-area">';
+    for(var i=0;i<topCmts.length;i++){
+      var tc=topCmts[i],ci=tc.raw.indexOf(':');if(ci<0)ci=tc.raw.indexOf('\uFF1A');if(ci<0)continue;
+      var ca=tc.raw.slice(0,ci).trim(),ct=tc.raw.slice(ci+1).trim(),likes=hashLikes(tc.raw),bid='cb'+i+'_'+(Date.now()%1000);
+      h+='<div class="fp-cmt-block" data-bid="'+bid+'"><div class="fp-cmt-i">'+avHTML(ca,'fp-cmt-av')+'<div class="fp-cmt-ct"><div class="fp-cmt-hr"><span class="fp-cmt-au">'+esc(ca)+'</span></div><div class="fp-cmt-tx">'+esc(ct)+'</div><div class="fp-cmt-foot"><span class="cmt-act cmt-like">'+likes+'</span><span class="cmt-act cmt-reply">\u56DE\u590D</span><span class="cmt-act cmt-dis" data-target="'+bid+'">\u4E0D\u611F</span></div></div></div>';
+      if(tc.replies.length){
+        h+='<div class="fp-cmt-replies">';
+        for(var j=0;j<tc.replies.length;j++){
+          var rep=tc.replies[j],ri=rep.indexOf(':');if(ri<0)ri=rep.indexOf('\uFF1A');if(ri<0)continue;
+          var ra=rep.slice(0,ri).trim(),rt=rep.slice(ri+1).trim(),rlikes=hashLikes(rep);
+          h+='<div class="fp-cmt-reply">'+avHTML(ra,'fp-cmt-rav')+'<div class="fp-cmt-rct"><div class="fp-cmt-rhr"><span class="fp-cmt-rau">'+esc(ra)+'</span><span class="fp-cmt-rto">\u56DE\u590D<em>@'+esc(ca)+'</em></span></div><div class="fp-cmt-rtx">'+esc(rt)+'</div><div class="fp-cmt-rfoot"><span class="cmt-act cmt-like">'+rlikes+'</span><span class="cmt-act cmt-reply">\u56DE\u590D</span></div></div></div>';
+        }
+        h+='</div>';
+      }
+      h+='</div>';
+    }
+    h+='</div></details>';
+  }
+  return h+'</div>';
+}
   
   var h='<div class="fp"><div class="fp-head">'+avHTML(au,'fp-av')+'<div class="fp-meta"><div class="fp-author">'+esc(au)+'</div><div class="fp-info-row"><span class="fp-tag">'+esc(tag)+'</span></div></div></div><div class="fp-title">'+esc(title)+'</div><div class="fp-body">'+esc(body)+'</div><div class="fp-footer"><span class="fp-stat">♡ '+esc(st[0]||'0')+'</span><span class="fp-stat">↻ '+esc(st[1]||'0')+'</span><span class="fp-stat">✦ '+esc(st[2]||'0')+'</span></div>';
   
